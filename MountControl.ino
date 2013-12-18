@@ -28,8 +28,8 @@ float DECFastSlewSpeed=10;
 float DECSlowSlewSpeed=10;
 
 char COMMANDEND = 0x0D;
-#define DEBUG 3
-#define LCD
+define DEBUG 3
+define LCD
 
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
