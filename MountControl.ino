@@ -9,7 +9,8 @@ int RAMotorStepsPerRev=3200;
 int DECMotorStepsPerRev=3200;//5333;
 long RATotalSteps= 416000;
 long DECTotalSteps=208000;
-long CountScale = 16;
+long RACountScale = 16;
+long DECCountScale = 16;
 
 float SiderealStep = 4.8279973396843335753534122834941;
 long  SiderealOffset = 0;
@@ -28,8 +29,8 @@ float DECFastSlewSpeed=10;
 float DECSlowSlewSpeed=10;
 
 char COMMANDEND = 0x0D;
-define DEBUG 3
-define LCD
+#define DEBUG 3
+#define LCD
 
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
@@ -74,8 +75,8 @@ void setup()
   RA_Motor.setCurrentPosition(0x080000);
   DEC_Motor.setCurrentPosition(0x080000);
   
-  RATotalSteps=   (long)RAWormRatio * (long)RAMotorStepsPerRev * (long)CountScale;
-  DECTotalSteps = (long)DECWormRatio* (long)DECMotorStepsPerRev * (long)CountScale;
+  RATotalSteps=   (long)RAWormRatio * (long)RAMotorStepsPerRev * (long)RACountScale;
+  DECTotalSteps = (long)DECWormRatio* (long)DECMotorStepsPerRev * (long)DECCountScale;
 }
 
 void loop() 
@@ -212,12 +213,12 @@ void ReportStepsPerWormRev(char *Command, char *Response)
    switch (Command[1] )
    {
      case '1' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, RAMotorStepsPerRev * CountScale);
+                ULongToHex_Short(Response, 1, RAMotorStepsPerRev * RACountScale);
                 CommandEND(Response,7);
      break;
 
      case '2' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, DECMotorStepsPerRev * CountScale);
+                ULongToHex_Short(Response, 1, DECMotorStepsPerRev * DECCountScale);
                 CommandEND(Response,7);
      break;
 
@@ -236,7 +237,7 @@ void SetTrackingSpeed(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Divisor = CountScale * HexToLong_Short(Command,2);
+     case '1' : Divisor = RACountScale * HexToLong_Short(Command,2);
                 if(Divisor != 0)
                 {
                    Speed = (float)64932/(float)Divisor; 
@@ -254,7 +255,7 @@ void SetTrackingSpeed(char *Command, char *Response)
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Divisor = CountScale * HexToLong_Short(Command,2);
+     case '2' : Divisor = DECCountScale * HexToLong_Short(Command,2);
                 if(Divisor != 0)
                 {
                    Speed = (float)64932/(float)Divisor; 
@@ -304,7 +305,7 @@ void ReportPosition(char *Command, char *Response)
    switch (Command[1] )
    {
      case '1' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, RA_Motor.currentPosition() * CountScale);
+                ULongToHex_Short(Response, 1, RA_Motor.currentPosition() * RACountScale);
 //                #if DEBUG >=2
 //                  Serial1.println(RA_Motor.currentPosition(),HEX);
 //                #endif
@@ -316,7 +317,7 @@ void ReportPosition(char *Command, char *Response)
      break;
 
      case '2' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, DEC_Motor.currentPosition() * CountScale);
+                ULongToHex_Short(Response, 1, DEC_Motor.currentPosition() * DECCountScale);
 //                #if DEBUG >=2
 //                  Serial1.println(DEC_Motor.currentPosition(),HEX);
 //                #endif
@@ -501,7 +502,7 @@ void SetAxisPosition(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Position = HexToLong_Short(Command,2) / CountScale;
+     case '1' : Position = HexToLong_Short(Command,2) / RACountScale;
                 RA_Motor.setCurrentPosition(Position);
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Position "); Serial1.println(Position,HEX);
@@ -509,7 +510,7 @@ void SetAxisPosition(char *Command, char *Response)
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Position = HexToLong_Short(Command,2) / CountScale;
+     case '2' : Position = HexToLong_Short(Command,2) / DECCountScale;
                 DEC_Motor.setCurrentPosition(Position); 
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Position "); Serial1.println(Position,HEX);
@@ -687,7 +688,7 @@ void Goto(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Offset = HexToLong_Short(Command,2) / CountScale;
+     case '1' : Offset = HexToLong_Short(Command,2) / RACountScale;
                 
                 if(RA_Motor.getDirection() == 1)
                   Position = RA_Motor.currentPosition() + Offset; 
@@ -706,7 +707,7 @@ void Goto(char *Command, char *Response)
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Offset = HexToLong_Short(Command,2) / CountScale;
+     case '2' : Offset = HexToLong_Short(Command,2) / DECCountScale;
                 
                 if(DEC_Motor.getDirection() == 1)
                   Position = DEC_Motor.currentPosition() + Offset; 
