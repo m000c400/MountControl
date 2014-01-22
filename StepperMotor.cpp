@@ -11,9 +11,9 @@ StepperMotor::StepperMotor(int Clock, int Direction, int Enable)
     _stepInterval = 0;
     _minPulseWidth = 1;
     _lastStepTime = 0;
-    _pin[0] = Clock;
-    _pin[1] = Direction;
-    _pin[2] = Enable;
+    _clock_pin = Clock;
+    _direction_pin = Direction;
+    _enable_pin = Enable;
 
     // NEW
     _n = 0;
@@ -21,10 +21,14 @@ StepperMotor::StepperMotor(int Clock, int Direction, int Enable)
     _cn = 0.0;
     _cmin = 1.0;
     _direction = DIRECTION_CCW;
+    
+    _clock_1 = HIGH;
+    _clock_0 = LOW;
+    _direction_1 = HIGH;
+    _direction_0 = LOW;
+    _enable_1 = HIGH;
+    _enable_0 = LOW;
 
-    int i;
-    for (i = 0; i < 3; i++)
-	_pinInverted[i] = 0;
 }
 
 void StepperMotor::moveTo(long absolute)
@@ -252,42 +256,24 @@ float StepperMotor::speed()
 void StepperMotor::step(long step)
 {
     // _pin[0] is step, _pin[1] is direction
-    setOutputPins(_direction ? 0b10 : 0b00); // Set direction first else get rogue pulses
-    setOutputPins(_direction ? 0b11 : 0b01); // step HIGH
+    //setOutputPins(_direction ? 0b10 : 0b00); // Set direction first else get rogue pulses
+    //setOutputPins(_direction ? 0b11 : 0b01); // step HIGH
     // Caution 200ns setup time 
     // Delay the minimum allowed pulse width
     delayMicroseconds(_minPulseWidth);
-    setOutputPins(_direction ? 0b10 : 0b00); // step LOW
-}
-
-// You might want to override this to implement eg serial output
-// bit 0 of the mask corresponds to _pin[0]
-// bit 1 of the mask corresponds to _pin[1]
-// ....
-void StepperMotor::setOutputPins(uint8_t mask)
-{
-    uint8_t numpins = 2;
-    uint8_t i;
-    for (i = 0; i < numpins; i++)
-	digitalWrite(_pin[i], (mask & (1 << i)) ? (HIGH ^ _pinInverted[i]) : (LOW ^ _pinInverted[i]));
+    //setOutputPins(_direction ? 0b10 : 0b00); // step LOW
 }
 
    
 // Prevents power consumption on the outputs
 void    StepperMotor::disableOutputs()
 {   
-     setOutputPins(0); // Handles inversion automatically
-     digitalWrite(_pin[2], LOW ^ _pinInverted[2]);
+     digitalWrite(_enable_pin, _enable_0);
 }
 
 void    StepperMotor::enableOutputs()
 {
-
-    pinMode(_pin[0], OUTPUT);
-    pinMode(_pin[1], OUTPUT);
-    pinMode(_pin[2], OUTPUT);
-
-    digitalWrite(_pin[2], HIGH ^ _pinInverted[2]);
+    digitalWrite(_enable_pin, _enable_1);
 }
 
 void StepperMotor::setMinPulseWidth(unsigned int minWidth)
@@ -297,9 +283,32 @@ void StepperMotor::setMinPulseWidth(unsigned int minWidth)
 
 void StepperMotor::setPinsInverted(bool directionInvert, bool stepInvert, bool enableInvert)
 {
-    _pinInverted[0] = stepInvert;
-    _pinInverted[1] = directionInvert;
-    _pinInverted[2] = enableInvert;
+    if(stepInvert)
+    {
+      _clock_1 = LOW; _clock_0 = HIGH;
+    }
+    else
+    {
+      _clock_1 = HIGH; _clock_0 = LOW;
+    }
+    
+    if(directionInvert)
+    {
+      _direction_1 = LOW; _direction_0 = HIGH;
+    }
+    else
+    {
+      _direction_1 = HIGH; _direction_0 = LOW;
+    }
+    
+    if(enableInvert)
+    {
+      _enable_1 = LOW; _enable_0 = HIGH;
+    }
+    else
+    {
+      _enable_1 = HIGH; _enable_0 = LOW;
+    }
 }
 
 // Blocks until the target position is reached and stopped

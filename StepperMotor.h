@@ -150,13 +150,6 @@ protected:
     /// move() or moveTo()
     void           computeNewSpeed();
 
-    /// Low level function to set the motor output pins
-    /// bit 0 of the mask corresponds to _pin[0]
-    /// bit 1 of the mask corresponds to _pin[1]
-    /// You can override this to impment, for example serial chip output insted of using the
-    /// output pins directly
-    virtual void   setOutputPins(uint8_t mask);
-
     /// Called to execute a step. Only called when a new step is
     /// required. Subclasses may override to implement new stepping
     /// interfaces. The default calls step1(), step2(), step4() or step8() depending on the
@@ -168,9 +161,9 @@ protected:
 private:
     /// Arduino pin number assignments for the 2 or 4 pins required to interface to the
     /// stepper motor or driver, Clock, Direct, Enable
-    int            _clock;
-    int            _direction;
-    int            _enable;
+    int            _clock_pin;
+    int            _direction_pin;
+    int            _enable_pin;
 
     /// Whether the _pins is inverted or not
     int            _clock_1;
