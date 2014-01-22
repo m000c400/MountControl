@@ -5,32 +5,32 @@
 
 int RAWormRatio=130;
 int DECWormRatio=108; // 65 * 30/18
-int RAMotorStepsPerRev=3200;
+int RAMotorStepsPerRev=25600;
 int DECMotorStepsPerRev=3200;//5333;
 long RATotalSteps= 416000;
 long DECTotalSteps=208000;
-long RACountScale = 16;
+long RACountScale = 2;
 long DECCountScale = 16;
 
-float SiderealStep = 4.8279973396843335753534122834941;
-long  SiderealOffset = 0;
+//float SiderealStep = 4.8279973396843335753534122834941;
+//long  SiderealOffset = 0;
 
 #define BUFFERSIZE 80
 #define TRUE 1
 #define FALSE 0
 
-float RAFastGotoSpeed=2000;
-float RASlowGotoSpeed=2000;
+float RAFastGotoSpeed=3000;
+float RASlowGotoSpeed=3000;
 float RAFastSlewSpeed=10;
 float RASlowSlewSpeed=10;
-float DECFastGotoSpeed=2000;
-float DECSlowGotoSpeed=2000;
+float DECFastGotoSpeed=1000;
+float DECSlowGotoSpeed=1000;
 float DECFastSlewSpeed=10;
 float DECSlowSlewSpeed=10;
 
 char COMMANDEND = 0x0D;
-#define DEBUG 3
-#define LCD
+//#define DEBUG 3
+//#define LCD
 
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
@@ -63,7 +63,7 @@ void setup()
   RA_Motor.setEnablePin( RA_ENABLE);
   DEC_Motor.setEnablePin(DEC_ENABLE);
   
-  RA_Motor.setPinsInverted(true, false, true);
+  RA_Motor.setPinsInverted(false, false, false);
   DEC_Motor.setPinsInverted(false, false, true);
 
   RA_Motor.disableOutputs();
@@ -233,7 +233,9 @@ void SetTrackingSpeed(char *Command, char *Response)
   long Divisor = 0;
   float Speed = 0;
   
-  Serial1.println("Set Tracking Speed");
+  #if DEBUG >=1
+    Serial1.println("Set Tracking Speed");
+  #endif 
   
   switch (Command[1] )
   {
