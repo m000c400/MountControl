@@ -3,34 +3,32 @@
 #include "TelescopeAxis.h"
 #include "PinAssignments.h"
 
-int RAWormRatio=130;
-int DECWormRatio=108; // 65 * 30/18
-int RAMotorStepsPerRev=25600;
-int DECMotorStepsPerRev=3200;//5333;
-long RATotalSteps= 416000;
+long RAWormRatio=130;
+long DECWormRatio=108; // 108 = 65 * 30/18
+long RAMotorStepsPerRev=3200; //25600;
+long DECMotorStepsPerRev=3200; //25600;//5333;
+long RATotalSteps= 33280000;
 long DECTotalSteps=208000;
-long RACountScale = 2;
+long RACountScale = 16;
 long DECCountScale = 16;
 
-//float SiderealStep = 4.8279973396843335753534122834941;
-//long  SiderealOffset = 0;
 
 #define BUFFERSIZE 80
 #define TRUE 1
 #define FALSE 0
 
-float RAFastGotoSpeed=3000;
-float RASlowGotoSpeed=3000;
+float RAFastGotoSpeed=3500;
+float RASlowGotoSpeed=3500;
 float RAFastSlewSpeed=10;
 float RASlowSlewSpeed=10;
-float DECFastGotoSpeed=1000;
-float DECSlowGotoSpeed=1000;
+float DECFastGotoSpeed=3000;
+float DECSlowGotoSpeed=3000;
 float DECFastSlewSpeed=10;
 float DECSlowSlewSpeed=10;
 
 char COMMANDEND = 0x0D;
 //#define DEBUG 3
-//#define LCD
+#define LCD
 
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
@@ -254,6 +252,12 @@ void SetTrackingSpeed(char *Command, char *Response)
                 #if DEBUG >=2
                   Serial1.println("\t\tNew Tracking Speed "); Serial1.println(RAFastSlewSpeed,4);
                 #endif
+                
+                #ifdef LCD
+                  lcd.setCursor(0, 0);
+                  lcd.print(Speed);
+                #endif
+
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
@@ -272,6 +276,11 @@ void SetTrackingSpeed(char *Command, char *Response)
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Tracking Speed "); Serial1.println(DECFastSlewSpeed,4);
                 #endif
+                #ifdef LCD
+                  lcd.setCursor(8, 0);
+                  lcd.print(Speed);
+                #endif
+                
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
