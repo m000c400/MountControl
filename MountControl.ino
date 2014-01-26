@@ -3,6 +3,26 @@
 #include "TelescopeAxis.h"
 #include "PinAssignments.h"
 
+struct Configuration_Struct
+{
+  long RAWormRatio;
+  long DECWormRatio; // 108 = 65 * 30/18
+  long RAMotorStepsPerRev; //25600;
+  long DECMotorStepsPerRev; //25600;//5333;
+  long RACountScale;
+  long DECCountScale;
+  float RAFastGotoSpeed;
+  float RASlowGotoSpeed;
+  float RAFastSlewSpeed;
+  float RASlowSlewSpeed;
+  float DECFastGotoSpeed;
+  float DECSlowGotoSpeed;
+  float DECFastSlewSpeed;
+  float DECSlowSlewSpeed;
+};   
+
+
+
 long RAWormRatio=130;
 long DECWormRatio=108; // 108 = 65 * 30/18
 long RAMotorStepsPerRev=3200; //25600;
