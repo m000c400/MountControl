@@ -1,71 +1,44 @@
+#include <EEPROM.h>
 #include <AccelStepper.h>
 #include <LiquidCrystal.h>
+
 #include "TelescopeAxis.h"
 #include "PinAssignments.h"
+#include "Configuration.h"
 
-struct Configuration_Struct
-{
-  long RAWormRatio;
-  long DECWormRatio; // 108 = 65 * 30/18
-  long RAMotorStepsPerRev; //25600;
-  long DECMotorStepsPerRev; //25600;//5333;
-  long RACountScale;
-  long DECCountScale;
-  float RAFastGotoSpeed;
-  float RASlowGotoSpeed;
-  float RAFastSlewSpeed;
-  float RASlowSlewSpeed;
-  float DECFastGotoSpeed;
-  float DECSlowGotoSpeed;
-  float DECFastSlewSpeed;
-  float DECSlowSlewSpeed;
-};   
-
-
-
-long RAWormRatio=130;
-long DECWormRatio=108; // 108 = 65 * 30/18
-long RAMotorStepsPerRev=3200; //25600;
-long DECMotorStepsPerRev=3200; //25600;//5333;
-long RATotalSteps= 33280000;
-long DECTotalSteps=208000;
-long RACountScale = 16;
-long DECCountScale = 16;
-
+//#define DEBUG 3
+#define LCD
 
 #define BUFFERSIZE 80
 #define TRUE 1
 #define FALSE 0
 
-float RAFastGotoSpeed=3500;
-float RASlowGotoSpeed=3500;
-float RAFastSlewSpeed=10;
-float RASlowSlewSpeed=10;
-float DECFastGotoSpeed=3000;
-float DECSlowGotoSpeed=3000;
-float DECFastSlewSpeed=10;
-float DECSlowSlewSpeed=10;
-
 char COMMANDEND = 0x0D;
-//#define DEBUG 3
-#define LCD
 
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
 #endif
 
-TelescopeAxis RA_Motor( TelescopeAxis::DRIVER, RA_STEP, RA_DIRECTION);
-TelescopeAxis DEC_Motor( TelescopeAxis::DRIVER, DEC_STEP, DEC_DIRECTION);
+TelescopeAxis *RA_Motor;
+TelescopeAxis *DEC_Motor;
+Configuration *MountConfiguration;
 
+#define CONTROL 1
+#define CONFIGURE 2
+int MountMode = CONTROL;
+
+char Response[40];
 char CommandBuffer[BUFFERSIZE + 1];
 int  BufferUsed = 0;
-long RA_Requested;
-long RA_Position;
-long DEC_Requested;
-long DEC_Position;
 
 void setup() 
 {
+  RA_Motor = new TelescopeAxis( TelescopeAxis::DRIVER, RA_STEP, RA_DIRECTION);
+  DEC_Motor = new TelescopeAxis(TelescopeAxis::DRIVER, DEC_STEP, DEC_DIRECTION);
+  MountConfiguration = new Configuration();
+    
+  MountConfiguration->LoadConfiguration();
+  
   Serial.begin(9800);
 
 #ifdef LCD
@@ -78,141 +51,129 @@ void setup()
     Serial1.begin(115200);
   #endif
   
-  RA_Motor.setEnablePin( RA_ENABLE);
-  DEC_Motor.setEnablePin(DEC_ENABLE);
+  RA_Motor->setEnablePin( RA_ENABLE);
+  DEC_Motor->setEnablePin(DEC_ENABLE);
   
-  RA_Motor.setPinsInverted(false, false, false);
-  DEC_Motor.setPinsInverted(false, false, true);
+  RA_Motor->setPinsInverted(false, false, false);
+  DEC_Motor->setPinsInverted(false, false, true);
 
-  RA_Motor.disableOutputs();
-  DEC_Motor.disableOutputs();
+  RA_Motor->disableOutputs();
+  DEC_Motor->disableOutputs();
   
-  RA_Motor.setMaxSpeed(1000);RA_Motor.setAcceleration(4000);
-  DEC_Motor.setMaxSpeed(1000);DEC_Motor.setAcceleration(4000);
+  RA_Motor->setMaxSpeed(MountConfiguration->GetRAGotoSpeed());RA_Motor->setAcceleration(4000);
+  DEC_Motor->setMaxSpeed(MountConfiguration->GetDECGotoSpeed());DEC_Motor->setAcceleration(4000);
   
-  RA_Motor.setCurrentPosition(0x080000);
-  DEC_Motor.setCurrentPosition(0x080000);
+  RA_Motor->setCurrentPosition(0x080000);
+  DEC_Motor->setCurrentPosition(0x080000);
   
-  RATotalSteps=   (long)RAWormRatio * (long)RAMotorStepsPerRev * (long)RACountScale;
-  DECTotalSteps = (long)DECWormRatio* (long)DECMotorStepsPerRev * (long)DECCountScale;
 }
 
 void loop() 
 {
-  static char Response[40];
-  
   while (Serial.available())
   {
-    if(BufferUsed < BUFFERSIZE)
-    {
-      Serial.readBytes(&CommandBuffer[BufferUsed], 1);
+     if(MountMode == CONTROL)
+       MountControlMode();
+     else
+       MountConfigurationMode();
+   }
+  
+  RA_Motor->Run();
+  DEC_Motor->Run();
+}
+
+void MountControlMode()
+{
+  if(BufferUsed < BUFFERSIZE)
+  {
+    Serial.readBytes(&CommandBuffer[BufferUsed], 1);
       
-      if(CommandBuffer[BufferUsed] == ':')  
-      {
-        BufferUsed = 0;
-      }
-      else if (CommandBuffer[BufferUsed] == 0x0D)
-      {
-        CommandBuffer[BufferUsed] = '\0';
-        ToggleStatusPin();
+    if(CommandBuffer[BufferUsed] == ':')  
+    {
+      BufferUsed = 0;
+    }
+    else if (CommandBuffer[BufferUsed] == 0x0D)
+    {
+      CommandBuffer[BufferUsed] = '\0';
+      ToggleStatusPin();
 
-        #if DEBUG >=1
-        Serial1.print("Command ");
-        Serial1.println(CommandBuffer);
-        #endif
+      #if DEBUG >=1
+      Serial1.print("Command ");
+      Serial1.println(CommandBuffer);
+      #endif
         
-        switch (CommandBuffer[0])
-        {
-          case 'a' : ReportStepsPerRevolution(CommandBuffer,Response);
-          break;
-          
-          case 'b' : ReportTimerInterruptFrequency(CommandBuffer,Response);
-          break;
-          
-          case 'e' : ReportVersion(CommandBuffer,Response);
-          break;
-          
-          case 'f' : ReportAxisStatus(CommandBuffer,Response);
-          break;
-
-          case 'g' : ReportHighSpeedRatio(CommandBuffer,Response);
-          break;
-          
-          case 'j' : ReportPosition(CommandBuffer,Response);
-          break;
-           
-          case 's' : ReportStepsPerWormRev(CommandBuffer,Response);
-          break;
-          
-          case 'E' : SetAxisPosition(CommandBuffer,Response);
-          break;
-          
-          case 'F' : InitialiseAxis(CommandBuffer,Response);
-          break;
-          
-          case 'G' : SetAxisMotionMode(CommandBuffer,Response);
-          break;
-          
-          case 'H' : Goto(CommandBuffer,Response);
-          break;
-          
-          case 'I' : SetTrackingSpeed(CommandBuffer,Response);
-          break;
-          
-          case 'J' : StartMotion(CommandBuffer,Response);
-          break;
-          
-          case 'K' : StopAxis(CommandBuffer,Response);
-          break;
-          
-          case 'L' : StopNow(CommandBuffer,Response);
-          break;
-          
-          default  : CommandOK(Response,0); CommandEND(Response,1);
-          break;          
-        }
-        Serial.print(Response);
-        #if DEBUG >=1
-        Serial1.print("Response ");
-        Serial1.println(Response);
-        #endif
-
-        BufferUsed = 0; 
-      }
-      else
+      switch (CommandBuffer[0])
       {
-         BufferUsed ++;
+        case 'a' : ReportStepsPerRevolution(CommandBuffer,Response);
+        break;
+          
+        case 'b' : ReportTimerInterruptFrequency(CommandBuffer,Response);
+        break;
+          
+        case 'e' : ReportVersion(CommandBuffer,Response);
+        break;
+          
+        case 'f' : ReportAxisStatus(CommandBuffer,Response);
+        break;
+
+        case 'g' : ReportHighSpeedRatio(CommandBuffer,Response);
+        break;
+          
+        case 'j' : ReportPosition(CommandBuffer,Response);
+        break;
+           
+        case 's' : ReportStepsPerWormRev(CommandBuffer,Response);
+        break;
+          
+        case 'E' : SetAxisPosition(CommandBuffer,Response);
+        break;
+          
+        case 'F' : InitialiseAxis(CommandBuffer,Response);
+        break;
+          
+        case 'G' : SetAxisMotionMode(CommandBuffer,Response);
+        break;
+          
+        case 'H' : Goto(CommandBuffer,Response);
+        break;
+          
+        case 'I' : SetTrackingSpeed(CommandBuffer,Response);
+        break;
+          
+        case 'J' : StartMotion(CommandBuffer,Response);
+        break;
+          
+        case 'K' : StopAxis(CommandBuffer,Response);
+        break;
+          
+        case 'L' : StopNow(CommandBuffer,Response);
+        break;
+        
+        case 'Z' : MountMode = CONFIGURE; CommandError(Response,0); CommandEND(Response,1); 
+        break;
+        
+        default  : CommandOK(Response,0); CommandEND(Response,1);
+        break;          
       }
+      Serial.print(Response);
+      #if DEBUG >=1
+      Serial1.print("Response ");
+      Serial1.println(Response);
+      #endif
+
+      BufferUsed = 0; 
     }
     else
     {
-      BufferUsed = 0;
-    }  
+       BufferUsed ++;
+    }
   }
-/*
-  Serial1.print("Ra Mode ");
-  Serial1.print(RA_Motor.getMotionMode());
-  Serial1.print(" Stop ");
-  Serial1.print(RA_Motor.isStopped());
-  Serial1.print(" Speed ");
-  Serial1.print(RA_Motor.speed());
-  Serial1.print(" Enabled ");
-  Serial1.println(RA_Motor.isEnabled());
-  
-  Serial1.print("  DEC Mode");
-  Serial1.print(DEC_Motor.getMotionMode());
-  Serial1.print(" Stop ");
-  Serial1.print(DEC_Motor.isStopped());
-  Serial1.print(" Speed ");
-  Serial1.print(DEC_Motor.speed());
-  Serial1.print(" Enabled ");
-  Serial1.println(DEC_Motor.isEnabled());
- */ 
-  
-  
-  RA_Motor.Run();
-  DEC_Motor.Run();
+  else
+  {
+    BufferUsed = 0;
+  }  
 }
+
 
 void ReportVersion(char *Command, char *Response)
 {
@@ -231,12 +192,12 @@ void ReportStepsPerWormRev(char *Command, char *Response)
    switch (Command[1] )
    {
      case '1' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, RAMotorStepsPerRev * RACountScale);
+                ULongToHex_Short(Response, 1, MountConfiguration->GetRAStepsPerWormRev());
                 CommandEND(Response,7);
      break;
 
      case '2' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, DECMotorStepsPerRev * DECCountScale);
+                ULongToHex_Short(Response, 1, MountConfiguration->GetDECStepsPerWormRev());
                 CommandEND(Response,7);
      break;
 
@@ -257,20 +218,18 @@ void SetTrackingSpeed(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Divisor = RACountScale * HexToLong_Short(Command,2);
+     case '1' : Divisor = MountConfiguration->GetRAMotorCountScale() * HexToLong_Short(Command,2);
                 if(Divisor != 0)
                 {
                    Speed = (float)64932/(float)Divisor; 
-                   if(RA_Motor.getDirection()== 0)
+                   if(RA_Motor->getDirection()== 0)
                    {
                       Speed = -1*Speed;
                    }
-                   RAFastSlewSpeed = Speed;
-                   RASlowSlewSpeed = Speed;
-                   RA_Motor.setSpeed(Speed); 
+                   RA_Motor->setSpeed(Speed); 
                 } 
                 #if DEBUG >=2
-                  Serial1.println("\t\tNew Tracking Speed "); Serial1.println(RAFastSlewSpeed,4);
+                  Serial1.println("\t\tNew Tracking Speed "); Serial1.println(Speed,4);
                 #endif
                 
                 #ifdef LCD
@@ -281,20 +240,18 @@ void SetTrackingSpeed(char *Command, char *Response)
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Divisor = DECCountScale * HexToLong_Short(Command,2);
+     case '2' : Divisor = MountConfiguration->GetDECMotorCountScale() * HexToLong_Short(Command,2);
                 if(Divisor != 0)
                 {
                    Speed = (float)64932/(float)Divisor; 
-                   if(DEC_Motor.getDirection() == 0)
+                   if(DEC_Motor->getDirection() == 0)
                    {
                      Speed = -1*Speed;
                    }
-                   DECFastSlewSpeed = Speed;
-                   DECSlowSlewSpeed = Speed;
-                   DEC_Motor.setSpeed(Speed);
+                   DEC_Motor->setSpeed(Speed);
                 } 
                 #if DEBUG >=2
-                  Serial1.print("\t\tNew Tracking Speed "); Serial1.println(DECFastSlewSpeed,4);
+                  Serial1.print("\t\tNew Tracking Speed "); Serial1.println(Speed,4);
                 #endif
                 #ifdef LCD
                   lcd.setCursor(8, 0);
@@ -316,12 +273,12 @@ void ReportStepsPerRevolution(char *Command, char *Response)
    switch (Command[1] )
    {
      case '1' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, RATotalSteps);
+                ULongToHex_Short(Response, 1, MountConfiguration->GetRAStepsPerAxisRev());
                 CommandEND(Response,7);
      break;
 
      case '2' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, DECTotalSteps);
+                ULongToHex_Short(Response, 1, MountConfiguration->GetDECStepsPerAxisRev());
                 CommandEND(Response,7);
      break;
 
@@ -336,25 +293,25 @@ void ReportPosition(char *Command, char *Response)
    switch (Command[1] )
    {
      case '1' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, RA_Motor.currentPosition() * RACountScale);
+                ULongToHex_Short(Response, 1, RA_Motor->currentPosition() * MountConfiguration->GetRAMotorCountScale());
 //                #if DEBUG >=2
-//                  Serial1.println(RA_Motor.currentPosition(),HEX);
+//                  Serial1.println(RA_Motor->currentPosition(),HEX);
 //                #endif
                 #ifdef LCD
                   lcd.setCursor(0, 1);
-                  lcd.print(RA_Motor.currentPosition(),HEX);
+                  lcd.print(RA_Motor->currentPosition(),HEX);
                 #endif
                 CommandEND(Response,7);
      break;
 
      case '2' : CommandOK(Response,0);
-                ULongToHex_Short(Response, 1, DEC_Motor.currentPosition() * DECCountScale);
+                ULongToHex_Short(Response, 1, DEC_Motor->currentPosition() * MountConfiguration->GetDECMotorCountScale());
 //                #if DEBUG >=2
-//                  Serial1.println(DEC_Motor.currentPosition(),HEX);
+//                  Serial1.println(DEC_Motor->currentPosition(),HEX);
 //                #endif
                 #ifdef LCD
                   lcd.setCursor(8, 1);
-                  lcd.print(DEC_Motor.currentPosition(),HEX);
+                  lcd.print(DEC_Motor->currentPosition(),HEX);
                 #endif
                 CommandEND(Response,7);
      break;
@@ -386,14 +343,14 @@ void StopAxis(char *Command, char *Response)
 {
    switch (Command[1] )
    {
-     case '1' : RA_Motor.stopAxis(FALSE);
+     case '1' : RA_Motor->stopAxis(FALSE);
                 #if DEBUG >=1
                   Serial1.println("\t\tStop RA Axis"); 
                 #endif
                 CommandOK(Response,0);CommandEND(Response,1);
      break;
 
-     case '2' : DEC_Motor.stopAxis(FALSE);
+     case '2' : DEC_Motor->stopAxis(FALSE);
                 #if DEBUG >=1
                   Serial1.println("\t\tStop DEC Axis"); 
                 #endif
@@ -411,11 +368,11 @@ void StopNow(char *Command, char *Response)
 {
    switch (Command[1] )
    {
-     case '1' : RA_Motor.stopAxis(TRUE);
+     case '1' : RA_Motor->stopAxis(TRUE);
                 CommandOK(Response,0);CommandEND(Response,1);
      break;
 
-     case '2' : DEC_Motor.stopAxis(TRUE);
+     case '2' : DEC_Motor->stopAxis(TRUE);
                 CommandOK(Response,0);CommandEND(Response,1);
      break;
 
@@ -429,11 +386,11 @@ void InitialiseAxis(char *Command, char *Response)
 {
    switch (Command[1] )
    {
-     case '1' : RA_Motor.enableOutputs();
+     case '1' : RA_Motor->enableOutputs();
                 CommandOK(Response,0);CommandEND(Response,1);
      break;
 
-     case '2' : DEC_Motor.enableOutputs();
+     case '2' : DEC_Motor->enableOutputs();
                 CommandOK(Response,0);CommandEND(Response,1);
      break;
 
@@ -449,26 +406,26 @@ void ReportAxisStatus(char *Command, char *Response)
    {
      case '1' : CommandOK(Response,0);
                 
-               if(RA_Motor.isEnabled()==1)
+               if(RA_Motor->isEnabled()==1)
                  Response[3] = '1';
                else
                  Response[3] = '0';
                
-               if(RA_Motor.getMotionMode() == 1)
+               if(RA_Motor->getMotionMode() == 1)
                  Response[2] = '1';
                else
                  Response[2] = '0';
                 
-               if(RA_Motor.getDirection() == 1)
+               if(RA_Motor->getDirection() == 1)
                {
-                 if(RA_Motor.isStopped())
+                 if(RA_Motor->isStopped())
                    Response[1] = '1';
                  else
                    Response[1] = '0';
                }
                else
                {
-                 if(RA_Motor.isStopped())
+                 if(RA_Motor->isStopped())
                    Response[1] = '3';
                  else
                    Response[1] = '2';
@@ -476,36 +433,36 @@ void ReportAxisStatus(char *Command, char *Response)
                
                 #if DEBUG >=3
                   Serial1.print("\t\t");
-                  Serial1.print(" Direction "); Serial1.print(RA_Motor.getDirection());
-                  Serial1.print(" Stopped "); Serial1.print(RA_Motor.isStopped());
-                  Serial1.print(" Motion Mode "); Serial1.print(RA_Motor.getMotionMode());
-                  Serial1.print(" Enabled "); Serial1.println(RA_Motor.isEnabled());
+                  Serial1.print(" Direction "); Serial1.print(RA_Motor->getDirection());
+                  Serial1.print(" Stopped "); Serial1.print(RA_Motor->isStopped());
+                  Serial1.print(" Motion Mode "); Serial1.print(RA_Motor->getMotionMode());
+                  Serial1.print(" Enabled "); Serial1.println(RA_Motor->isEnabled());
                 #endif
                 CommandEND(Response,4);
      break;
 
      case '2' : CommandOK(Response,0);
               
-               if(DEC_Motor.isEnabled()==1)
+               if(DEC_Motor->isEnabled()==1)
                  Response[3] = '1';
                else
                  Response[3] = '0';
                
-               if(DEC_Motor.getMotionMode() == 1)
+               if(DEC_Motor->getMotionMode() == 1)
                  Response[2] = '1';
                else
                  Response[2] = '0';
                 
-               if(DEC_Motor.getDirection() == 1)
+               if(DEC_Motor->getDirection() == 1)
                {
-                 if(DEC_Motor.isStopped())
+                 if(DEC_Motor->isStopped())
                    Response[1] = '1';
                  else
                    Response[1] = '0';
                }
                else
                {
-                 if(DEC_Motor.isStopped())
+                 if(DEC_Motor->isStopped())
                    Response[1] = '3';
                  else
                    Response[1] = '2';
@@ -513,10 +470,10 @@ void ReportAxisStatus(char *Command, char *Response)
                 
                 #if DEBUG >=3
                   Serial1.print("\t\t");
-                  Serial1.print(" Direction "); Serial1.print(DEC_Motor.getDirection());
-                  Serial1.print(" Stopped "); Serial1.print(DEC_Motor.isStopped());
-                  Serial1.print(" Motion Mode "); Serial1.print(DEC_Motor.getMotionMode());
-                  Serial1.print(" Enabled "); Serial1.println(DEC_Motor.isEnabled());
+                  Serial1.print(" Direction "); Serial1.print(DEC_Motor->getDirection());
+                  Serial1.print(" Stopped "); Serial1.print(DEC_Motor->isStopped());
+                  Serial1.print(" Motion Mode "); Serial1.print(DEC_Motor->getMotionMode());
+                  Serial1.print(" Enabled "); Serial1.println(DEC_Motor->isEnabled());
                 #endif
                 CommandEND(Response,4);
      break;
@@ -533,16 +490,16 @@ void SetAxisPosition(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Position = HexToLong_Short(Command,2) / RACountScale;
-                RA_Motor.setCurrentPosition(Position);
+     case '1' : Position = HexToLong_Short(Command,2) / MountConfiguration->GetRAMotorCountScale();
+                RA_Motor->setCurrentPosition(Position);
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Position "); Serial1.println(Position,HEX);
                 #endif
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Position = HexToLong_Short(Command,2) / DECCountScale;
-                DEC_Motor.setCurrentPosition(Position); 
+     case '2' : Position = HexToLong_Short(Command,2) / MountConfiguration->GetDECMotorCountScale();
+                DEC_Motor->setCurrentPosition(Position); 
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Position "); Serial1.println(Position,HEX);
                 #endif
@@ -559,14 +516,14 @@ void StartMotion(char *Command, char *Response)
 {
   switch (Command[1] )
   {
-     case '1' : RA_Motor.startAxis();
+     case '1' : RA_Motor->startAxis();
                 #if DEBUG >=1
                   Serial1.println("\t\tStart RA Axis"); 
                 #endif
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : DEC_Motor.startAxis(); 
+     case '2' : DEC_Motor->startAxis(); 
                 #if DEBUG >=1
                   Serial1.print("\t\tStart DEC Axis");
                 #endif
@@ -594,50 +551,50 @@ void SetAxisMotionMode(char *Command, char *Response)
                    #if DEBUG >=1
                      Serial1.print(" High Speed : GOTO");
                    #endif
-                   RA_Motor.setMotionMode(TelescopeAxis::GOTO);
-                   RA_Motor.setMaxSpeed(RAFastGotoSpeed);
+                   RA_Motor->setMotionMode(TelescopeAxis::GOTO);
+                   RA_Motor->setMaxSpeed(MountConfiguration->GetRAGotoSpeed());
                 }
                 else if(Command[2] == '2')
                 {
                   #if DEBUG >=1
                      Serial1.print(" Low Speed : GOTO");
                    #endif
-                   RA_Motor.setMotionMode(TelescopeAxis::GOTO);
-                   RA_Motor.setMaxSpeed(RASlowGotoSpeed);
+                   RA_Motor->setMotionMode(TelescopeAxis::GOTO);
+                   RA_Motor->setMaxSpeed(MountConfiguration->GetDECGotoSpeed());
                 }
                 else if(Command[2] == '1')
                 {
                    #if DEBUG >=1
                      Serial1.print(" Low Speed : SLEW");
                    #endif
-                   RA_Motor.setMotionMode(TelescopeAxis::SLEW);
+                   RA_Motor->setMotionMode(TelescopeAxis::SLEW);
                    if(Command[3] == '0')
-                     RA_Motor.setSpeed(RASlowSlewSpeed);
+                     RA_Motor->setSpeed(MountConfiguration->GetRASlewSpeed());
                    else
-                     RA_Motor.setSpeed(-1*RASlowSlewSpeed);
+                     RA_Motor->setSpeed(-1*MountConfiguration->GetRASlewSpeed());
                 }
                 else if(Command[2] == '3')
                 {
                   #if DEBUG >=1
                      Serial1.print(" High Speed : SLEW");
                    #endif
-                   RA_Motor.setMotionMode(TelescopeAxis::SLEW);
+                   RA_Motor->setMotionMode(TelescopeAxis::SLEW);
                    if(Command[3] == '0')
-                     RA_Motor.setSpeed(RAFastSlewSpeed);
+                     RA_Motor->setSpeed(MountConfiguration->GetRASlewSpeed());
                    else
-                     RA_Motor.setSpeed(-1*RAFastSlewSpeed);
+                     RA_Motor->setSpeed(-1*MountConfiguration->GetRASlewSpeed());
                 }
                 
                 if(Command[3] == '0')
                 {
-                  RA_Motor.setDirection(1);
+                  RA_Motor->setDirection(1);
                   #if DEBUG >=1
                      Serial1.print(" Clockwise");
                    #endif
                 }
                 else
                 {
-                  RA_Motor.setDirection(0);
+                  RA_Motor->setDirection(0);
                   #if DEBUG >=1
                      Serial1.print(" Anti-clockwise");
                    #endif
@@ -651,38 +608,38 @@ void SetAxisMotionMode(char *Command, char *Response)
                 #endif
                 if(Command[2] == '0')
                 {
-                   DEC_Motor.setMotionMode(TelescopeAxis::GOTO);
-                   DEC_Motor.setMaxSpeed(DECFastGotoSpeed);
+                   DEC_Motor->setMotionMode(TelescopeAxis::GOTO);
+                   DEC_Motor->setMaxSpeed(MountConfiguration->GetDECGotoSpeed());
                    #if DEBUG >=1
                      Serial1.print(" High Speed : GOTO");
                    #endif
                 }
                 else if(Command[2] == '2')
                 {
-                   DEC_Motor.setMotionMode(TelescopeAxis::GOTO);
-                   DEC_Motor.setMaxSpeed(DECSlowGotoSpeed);
+                   DEC_Motor->setMotionMode(TelescopeAxis::GOTO);
+                   DEC_Motor->setMaxSpeed(MountConfiguration->GetDECSlewSpeed());
                    #if DEBUG >=1
                      Serial1.print(" Low Speed : GOTO");
                    #endif
                 }
                 else if(Command[2] == '1')
                 {
-                   DEC_Motor.setMotionMode(TelescopeAxis::SLEW);
+                   DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
                    if(Command[3] == '0')
-                     DEC_Motor.setSpeed(DECSlowSlewSpeed);
+                     DEC_Motor->setSpeed(MountConfiguration->GetDECSlewSpeed());
                    else
-                     DEC_Motor.setSpeed(-1*DECSlowSlewSpeed);
+                     DEC_Motor->setSpeed(-1*MountConfiguration->GetDECSlewSpeed());
                    #if DEBUG >=1
                      Serial1.print(" Low Speed : SLEW");
                    #endif
                 }
                 else if(Command[2] == '3')
                 {
-                   DEC_Motor.setMotionMode(TelescopeAxis::SLEW);
+                   DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
                    if(Command[3] == '0')
-                     DEC_Motor.setSpeed(DECFastSlewSpeed);
+                     DEC_Motor->setSpeed(MountConfiguration->GetDECSlewSpeed());
                    else
-                     DEC_Motor.setSpeed(-1*DECFastSlewSpeed);
+                     DEC_Motor->setSpeed(-1*MountConfiguration->GetDECSlewSpeed());
                    #if DEBUG >=1
                      Serial1.print(" High Speed : SLEW");
                    #endif                  
@@ -690,14 +647,14 @@ void SetAxisMotionMode(char *Command, char *Response)
 
                 if(Command[3] == '0')
                 {
-                  DEC_Motor.setDirection(1);
+                  DEC_Motor->setDirection(1);
                   #if DEBUG >=1
                     Serial1.print(" Clockwise");
                   #endif
                 }
                 else
                 {
-                  DEC_Motor.setDirection(0);
+                  DEC_Motor->setDirection(0);
                   #if DEBUG >=1
                      Serial1.print(" Anti-Clockwise");
                   #endif
@@ -719,14 +676,14 @@ void Goto(char *Command, char *Response)
   
   switch (Command[1] )
   {
-     case '1' : Offset = HexToLong_Short(Command,2) / RACountScale;
+     case '1' : Offset = HexToLong_Short(Command,2) / MountConfiguration->GetRAMotorCountScale();
                 
-                if(RA_Motor.getDirection() == 1)
-                  Position = RA_Motor.currentPosition() + Offset; 
+                if(RA_Motor->getDirection() == 1)
+                  Position = RA_Motor->currentPosition() + Offset; 
                 else
-                  Position = RA_Motor.currentPosition() - Offset; 
+                  Position = RA_Motor->currentPosition() - Offset; 
                   
-                RA_Motor.moveTo(Position); 
+                RA_Motor->moveTo(Position); 
                 #if DEBUG >=2
                   Serial1.print("\t\tRA Goto ");Serial1.print(Position, HEX);
                   Serial1.print(" ");
@@ -738,14 +695,14 @@ void Goto(char *Command, char *Response)
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
-     case '2' : Offset = HexToLong_Short(Command,2) / DECCountScale;
+     case '2' : Offset = HexToLong_Short(Command,2) / MountConfiguration->GetDECMotorCountScale();
                 
-                if(DEC_Motor.getDirection() == 1)
-                  Position = DEC_Motor.currentPosition() + Offset; 
+                if(DEC_Motor->getDirection() == 1)
+                  Position = DEC_Motor->currentPosition() + Offset; 
                 else
-                  Position = DEC_Motor.currentPosition() - Offset; 
+                  Position = DEC_Motor->currentPosition() - Offset; 
 
-                DEC_Motor.moveTo(Position); 
+                DEC_Motor->moveTo(Position); 
                 #if DEBUG >=2
                   Serial1.print("\t\tDEC Goto ");Serial1.print(Position, HEX);
                   Serial1.print(" ");
@@ -877,4 +834,61 @@ void ToggleStatusPin(void)
   Status = !Status;
 }
   
+
+
+void MountConfigurationMode(void)
+{
+  if(BufferUsed < BUFFERSIZE)
+  {
+    Serial.readBytes(&CommandBuffer[BufferUsed], 1);
+      
+    if(CommandBuffer[BufferUsed] == ':')  
+    {
+      BufferUsed = 0;
+    }
+    else if (CommandBuffer[BufferUsed] == 0x0D)
+    {
+      CommandBuffer[BufferUsed] = '\0';
+      ToggleStatusPin();
+
+      #if DEBUG >=1
+      Serial1.print("Command ");
+      Serial1.println(CommandBuffer);
+      #endif
+        
+      switch (CommandBuffer[0])
+      {
+        case 'a' : ReportConfiguration();
+        break;
+
+        case 'Z' : MountMode = CONTROL; 
+        break;
+        
+        default  : CommandOK(Response,0); CommandEND(Response,1);
+        break;          
+      }
+      BufferUsed = 0; 
+    }
+    else
+    {
+       BufferUsed ++;
+    }
+  }
+  else
+  {
+    BufferUsed = 0;
+  }  
+}
+
+void ReportConfiguration(void)
+{
+  Serial.println("RA "); 
+  Serial.println(MountConfiguration->GetRAStepsPerMotorRev());
+  Serial.println(MountConfiguration->GetRAMotorCountScale());
+  Serial.println(MountConfiguration->GetRAWormRatio());
+  Serial.println(MountConfiguration->GetDECStepsPerWormRev());
+  Serial.println(MountConfiguration->GetRAStepsPerAxisRev());
+}
+  
+
 
