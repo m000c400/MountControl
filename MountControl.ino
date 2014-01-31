@@ -104,7 +104,7 @@ void MountControlMode()
         
       switch (CommandBuffer[0])
       {
-        case 'a' : ReportStepsPerRevolution(CommandBuffer,Response);
+        case 'a' : ReportStepsPerAxisRevolution(CommandBuffer,Response);
         break;
           
         case 'b' : ReportTimerInterruptFrequency(CommandBuffer,Response);
@@ -268,7 +268,7 @@ void SetTrackingSpeed(char *Command, char *Response)
 }
 
 
-void ReportStepsPerRevolution(char *Command, char *Response)
+void ReportStepsPerAxisRevolution(char *Command, char *Response)
 {
    switch (Command[1] )
    {
@@ -864,6 +864,9 @@ void MountConfigurationMode(void)
         case 'Z' : MountMode = CONTROL; 
         break;
         
+        case 'W' : MountConfiguration->WriteConfiguration();
+        break;
+        
         default  : CommandOK(Response,0); CommandEND(Response,1);
         break;          
       }
@@ -882,12 +885,17 @@ void MountConfigurationMode(void)
 
 void ReportConfiguration(void)
 {
-  Serial.println("RA "); 
-  Serial.println(MountConfiguration->GetRAStepsPerMotorRev());
-  Serial.println(MountConfiguration->GetRAMotorCountScale());
-  Serial.println(MountConfiguration->GetRAWormRatio());
-  Serial.println(MountConfiguration->GetDECStepsPerWormRev());
-  Serial.println(MountConfiguration->GetRAStepsPerAxisRev());
+  Serial.println("\r\nParameter\tR.A.\tDeclination ");
+  Serial.print  ("Motor Steps\t");
+  Serial.print(MountConfiguration->GetRAStepsPerMotorRev());Serial.print("\t");Serial.println(MountConfiguration->GetDECStepsPerMotorRev());
+  Serial.print("Motor Scale\t");
+  Serial.print(MountConfiguration->GetRAMotorCountScale()); Serial.print("\t");  Serial.println(MountConfiguration->GetDECMotorCountScale());
+  Serial.print("Worm Ratio\t");
+  Serial.print(MountConfiguration->GetRAWormRatio());Serial.print("\t"); Serial.println(MountConfiguration->GetDECWormRatio());
+  Serial.print("GOTO Speed\t");
+  Serial.print((float)MountConfiguration->GetRAGotoSpeed(),2);Serial.print("\t"); Serial.println((float)MountConfiguration->GetDECGotoSpeed(),2);
+  Serial.print("Slew Speed\t");
+  Serial.print(MountConfiguration->GetRASlewSpeed()),2;Serial.print("\t"); Serial.println(MountConfiguration->GetDECSlewSpeed(),2);
 }
   
 

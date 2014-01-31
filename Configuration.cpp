@@ -6,11 +6,22 @@ Configuration::Configuration(void)
 
 void Configuration::LoadConfiguration(void)
 {
+  /*
+  cs.RAWormRatio = 130; // 130
+  cs.DECWormRatio = 108; // 108 = 65 * 30/18
   
-  //RATotalSteps =  (long)MountConfiguration->GetRAWormRatio() * (long)MountConfiguration->GetRAMotorStepsPerRev() * (long)MountConfiguration->GetRACountScale();
-  //DECTotalSteps = (long)MountConfiguration->GetDECWormRatio() * (long)MountConfiguration->GetDECMotorStepsPerRev() * (long)MountConfiguration->GetDECCountScale();
-
+  cs.RAStepsPerMotorRev = 12800;
+  cs.DECStepsPerMotorRev = 3200; 
   
+  cs.RAMotorCountScale = 2;
+  cs.DECMotorCountScale = 16;
+    
+  cs.RAGotoSpeed = 3000;
+  cs.RASlewSpeed = 3000;
+  cs.DECGotoSpeed = 3000;
+  cs.DECSlewSpeed = 3000;
+*/
+  EEPROM_read((void *)&cs,sizeof(cs));  
 }
 
 long Configuration::GetRAWormRatio(void)
@@ -18,9 +29,19 @@ long Configuration::GetRAWormRatio(void)
   return cs.RAWormRatio;
 }
 
+void Configuration::SetRAWormRatio(long Ratio)
+{
+  cs.RAWormRatio = Ratio;
+}
+
 long Configuration::GetDECWormRatio(void)
 {
   return cs.DECWormRatio;
+}
+
+void Configuration::SetDECWormRatio(long Ratio)
+{
+  cs.DECWormRatio = Ratio;
 }
 
 long Configuration::GetRAStepsPerMotorRev(void)
@@ -82,6 +103,27 @@ float Configuration::GetDECSlewSpeed(void)
 {
   return cs.DECSlewSpeed;
 }
+
+void Configuration::SetRAGotoSpeed(float Speed)
+{
+  cs.RAGotoSpeed = Speed;
+}
+
+void Configuration::SetRASlewSpeed(float Speed)
+{
+  cs.RASlewSpeed = Speed;
+}
+
+void Configuration::SetDECGotoSpeed(float Speed)
+{
+  cs.DECGotoSpeed = Speed;
+}
+
+void Configuration::SetDECSlewSpeed(float Speed)
+{
+  cs.DECSlewSpeed = Speed;
+}
+
  
 void Configuration::SetRAWormRatio(long Ratio)
 {
@@ -113,22 +155,27 @@ void Configuration::SetDECMotorCountScale(long Scale)
   cs.DECMotorCountScale = Scale;
 }
 
-/*
-int Configuration::EEPROM_write(int ee, const T& value)
+void Configuration::WriteConfiguration(void)
 {
-    const byte* p = (const byte*)(const void*)&value;
+  EEPROM_write((void *)&cs,sizeof(cs));
+}
+
+
+int Configuration::EEPROM_write(void *Object, int Size)
+{
+    const byte* p = (byte*)Object;
     unsigned int i;
-    for (i = 0; i < sizeof(value); i++)
-          EEPROM.write(ee++, *p++);
+    for (i = 0; i < Size; i++)
+          EEPROM.write(i, *p++);
     return i;
 }
 
-int Configuration::EEPROM_read(int ee, T& value)
+int Configuration::EEPROM_read(void *Object, int Size)
 {
-    byte* p = (byte*)(void*)&value;
+    byte* p = (byte*)(void*)Object;
     unsigned int i;
-    for (i = 0; i < sizeof(value); i++)
-          *p++ = EEPROM.read(ee++);
+    for (i = 0; i < Size; i++)
+          *p++ = EEPROM.read(i);
     return i;
 }
-*/
+

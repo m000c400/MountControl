@@ -18,8 +18,8 @@
 
 struct Configuration_Struct
 {
-  long RAWormRatio; // 130
-  long DECWormRatio; // 108 = 65 * 30/18
+  long RAWormRatio; 
+  long DECWormRatio; 
   
   long RAStepsPerMotorRev; //25600;
   long DECStepsPerMotorRev; //5333;
@@ -27,12 +27,6 @@ struct Configuration_Struct
   long RAMotorCountScale;
   long DECMotorCountScale;
     
-  long RAStepsPerWormRev; //25600;
-  long DECStepsPerWormRev; //5333;
-  
-  long RATotalStepsPerRev;
-  long DECTotalStepPerRev;
-
   float RAGotoSpeed;
   float RASlewSpeed;
   float DECGotoSpeed;
@@ -45,16 +39,25 @@ class Configuration
   public:
     Configuration();
     void LoadConfiguration(void);
-    void SaveConfiguration(void);
+    void WriteConfiguration(void);
     
     long GetRAWormRatio(void); 
+    void SetRAWormRatio(long Ratio); 
+    
     long GetDECWormRatio(void);
+    void SetDECWormRatio(long Ratio);
     
     long GetRAStepsPerMotorRev(void);
+    void SetRAStepsPerMotorRev(long Steps);
+
     long GetDECStepsPerMotorRev(void); 
+    void SetDECStepsPerMotorRev(long Steps); 
     
     long GetRAMotorCountScale(void);
+    void SetRAMotorCountScale(long Scale);
+
     long GetDECMotorCountScale(void);
+    void SetDECMotorCountScale(long Scale);
   
     long GetRAStepsPerWormRev(void);
     long GetDECStepsPerWormRev(void);
@@ -72,21 +75,21 @@ class Configuration
     void SetRAMotorCountScale(long Scale);
     void SetDECMotorCountScale(long Scale);
   
- 
-    
     float GetRAGotoSpeed(void);
     float GetRASlewSpeed(void);
     float GetDECGotoSpeed(void);
     float GetDECSlewSpeed(void);
-    
-    
+    void SetRAGotoSpeed(float Speed);
+    void SetRASlewSpeed(float Speed);
+    void SetDECGotoSpeed(float Speed);
+    void SetDECSlewSpeed(float Speed);
       
   protected:
 				
   private:
     struct Configuration_Struct cs;
-    //int EEPROM_write(int ee, const T& value);
-    //int EEPROM_read(int ee, const T& value);
+    int EEPROM_write(void *Object, int Size);
+    int EEPROM_read(void *Object, int Size);
 };
 
 
