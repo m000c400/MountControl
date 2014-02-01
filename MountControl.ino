@@ -63,8 +63,8 @@ void setup()
   RA_Motor->setMaxSpeed(MountConfiguration->GetRAGotoSpeed());RA_Motor->setAcceleration(4000);
   DEC_Motor->setMaxSpeed(MountConfiguration->GetDECGotoSpeed());DEC_Motor->setAcceleration(4000);
   
-  RA_Motor->setCurrentPosition(0x080000);
-  DEC_Motor->setCurrentPosition(0x080000);
+  RA_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetRAMotorCountScale());
+  DEC_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetDECMotorCountScale());
   
 }
 
@@ -860,6 +860,17 @@ void MountConfigurationMode(void)
       {
         case 'a' : ReportConfiguration();
         break;
+
+        case 'b' : SetMotorSteps(CommandBuffer);
+        break
+        
+        case 'c' : SetMotorScale(CommandBuffer);
+        break
+        
+        case 'd' : SetWormRatio(CommandBuffer);
+        break
+        
+        case 'e' : SetGOTOSpeed(CommandBuffer);
 
         case 'Z' : MountMode = CONTROL; 
         break;

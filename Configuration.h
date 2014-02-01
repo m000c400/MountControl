@@ -65,16 +65,6 @@ class Configuration
     long GetRAStepsPerAxisRev(void);
     long GetDECStepsPerAxisRev(void);
 
-
-    void SetRAWormRatio(long Ratio); 
-    void SetDECWormRatio(long Ratio);
-    
-    void SetRAStepsPerMotorRev(long Steps);
-    void SetDECStepsPerMotorRev(long Steps); 
-    
-    void SetRAMotorCountScale(long Scale);
-    void SetDECMotorCountScale(long Scale);
-  
     float GetRAGotoSpeed(void);
     float GetRASlewSpeed(void);
     float GetDECGotoSpeed(void);

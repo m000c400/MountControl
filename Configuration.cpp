@@ -124,17 +124,6 @@ void Configuration::SetDECSlewSpeed(float Speed)
   cs.DECSlewSpeed = Speed;
 }
 
- 
-void Configuration::SetRAWormRatio(long Ratio)
-{
-  cs.RAWormRatio = Ratio;
-}
-
-void Configuration::SetDECWormRatio(long Ratio)
-{
-  cs.DECWormRatio = Ratio;
-}
-    
 void Configuration::SetRAStepsPerMotorRev(long Steps)
 {
   cs.RAStepsPerMotorRev = Steps;
