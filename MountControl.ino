@@ -7,7 +7,7 @@
 #include "Configuration.h"
 
 //#define DEBUG 3
-#define LCD
+//#define LCD
 
 #define BUFFERSIZE 80
 #define TRUE 1
@@ -841,7 +841,8 @@ void MountConfigurationMode(void)
   if(BufferUsed < BUFFERSIZE)
   {
     Serial.readBytes(&CommandBuffer[BufferUsed], 1);
-      
+    Serial.print(CommandBuffer[BufferUsed]);
+    
     if(CommandBuffer[BufferUsed] == ':')  
     {
       BufferUsed = 0;
@@ -861,16 +862,17 @@ void MountConfigurationMode(void)
         case 'a' : ReportConfiguration();
         break;
 
-        case 'b' : SetMotorSteps(CommandBuffer);
-        break
+        case 'b' : SetMotorSteps(&CommandBuffer[2]);
+        break;
         
-        case 'c' : SetMotorScale(CommandBuffer);
-        break
+        case 'c' : SetMotorScale(&CommandBuffer[2]);
+        break;
         
-        case 'd' : SetWormRatio(CommandBuffer);
-        break
+        case 'd' : SetWormRatio(&CommandBuffer[2]);
+        break;
         
-        case 'e' : SetGOTOSpeed(CommandBuffer);
+        case 'e' : SetGOTOSpeed(&CommandBuffer[2]);
+        break;
 
         case 'Z' : MountMode = CONTROL; 
         break;
@@ -906,8 +908,49 @@ void ReportConfiguration(void)
   Serial.print("GOTO Speed\t");
   Serial.print((float)MountConfiguration->GetRAGotoSpeed(),2);Serial.print("\t"); Serial.println((float)MountConfiguration->GetDECGotoSpeed(),2);
   Serial.print("Slew Speed\t");
-  Serial.print(MountConfiguration->GetRASlewSpeed()),2;Serial.print("\t"); Serial.println(MountConfiguration->GetDECSlewSpeed(),2);
+  Serial.print(MountConfiguration->GetRASlewSpeed());Serial.print("\t"); Serial.println(MountConfiguration->GetDECSlewSpeed());
 }
   
 
+void SetMotorSteps(char *CommandBuffer)
+{
+  long _Steps;
+  _Steps = atol(&CommandBuffer[2]);
+  
+  if(CommandBuffer[0] == '1')
+    MountConfiguration->SetRAStepsPerMotorRev(_Steps);
+  else if(CommandBuffer[0] == '2')
+    MountConfiguration->SetDECStepsPerMotorRev(_Steps);
+}
+void SetMotorScale(char *CommandBuffer)
+{
+  long _Scale;
+  _Scale = atol(&CommandBuffer[2]);
+  
+  if(CommandBuffer[0] == '1')
+    MountConfiguration->SetRAMotorCountScale(_Scale);
+  else if(CommandBuffer[0] == '2')
+    MountConfiguration->SetDECMotorCountScale(_Scale);
+}
 
+void SetWormRatio(char *CommandBuffer)
+{
+  long _Ratio;
+  _Ratio = atol(&CommandBuffer[2]);
+  
+  if(CommandBuffer[0] == '1')
+    MountConfiguration->SetRAWormRatio(_Ratio);
+  else if(CommandBuffer[0] == '2')
+    MountConfiguration->SetDECWormRatio(_Ratio);
+}
+
+void SetGOTOSpeed(char *CommandBuffer)
+{
+  long _Speed;
+  _Speed = atol(&CommandBuffer[2]);
+  
+  if(CommandBuffer[0] == '1')
+    MountConfiguration->SetRAGotoSpeed(_Speed);
+  else if(CommandBuffer[0] == '2')
+    MountConfiguration->SetDECGotoSpeed(_Speed);
+}

@@ -6,15 +6,15 @@ Configuration::Configuration(void)
 
 void Configuration::LoadConfiguration(void)
 {
-  /*
+/*  
   cs.RAWormRatio = 130; // 130
-  cs.DECWormRatio = 108; // 108 = 65 * 30/18
+  cs.DECWormRatio = 65; // 108 = 65 * 30/18
   
   cs.RAStepsPerMotorRev = 12800;
-  cs.DECStepsPerMotorRev = 3200; 
+  cs.DECStepsPerMotorRev = 5333; 
   
-  cs.RAMotorCountScale = 2;
-  cs.DECMotorCountScale = 16;
+  cs.RAMotorCountScale = 1;
+  cs.DECMotorCountScale = 1;
     
   cs.RAGotoSpeed = 3000;
   cs.RASlewSpeed = 3000;
@@ -150,7 +150,7 @@ void Configuration::WriteConfiguration(void)
 }
 
 
-int Configuration::EEPROM_write(void *Object, int Size)
+int Configuration::EEPROM_write(void *Object, unsigned int Size)
 {
     const byte* p = (byte*)Object;
     unsigned int i;
@@ -159,7 +159,7 @@ int Configuration::EEPROM_write(void *Object, int Size)
     return i;
 }
 
-int Configuration::EEPROM_read(void *Object, int Size)
+int Configuration::EEPROM_read(void *Object, unsigned int Size)
 {
     byte* p = (byte*)(void*)Object;
     unsigned int i;

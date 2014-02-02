@@ -78,8 +78,8 @@ class Configuration
 				
   private:
     struct Configuration_Struct cs;
-    int EEPROM_write(void *Object, int Size);
-    int EEPROM_read(void *Object, int Size);
+    int EEPROM_write(void *Object, unsigned int Size);
+    int EEPROM_read(void *Object, unsigned int Size);
 };
 
 
