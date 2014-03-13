@@ -7,6 +7,7 @@
 #include "TelescopeAxis.h"
 #include "PinAssignments.h"
 #include "Configuration.h"
+#include "IRCodes.h"
 
 //#define DEBUG 3
 #define LCD
@@ -91,7 +92,7 @@ void loop()
   #ifdef IR
     if (IRRx.decode(&IRResults)) 
     {
-      Serial.println(IRResults.value, HEX);
+      ProcessIRMessage(IRResults.value);
       IRRx.resume(); // Receive the next value
     }
   #endif
@@ -973,6 +974,13 @@ void SetGOTOSpeed(char *CommandBuffer)
     MountConfiguration->SetDECGotoSpeed(_Speed);
 }
 
-void ProcessIRMessage(void)
+void ProcessIRMessage(unsigned long command)
 {
+  switch(command)
+  {
+    case IR_OK:  RA_Motor->setMotionMode(TelescopeAxis::SLEW);
+                 RA_Motor->setSpeed(MountConfiguration->GetRASlewSpeed());
+                 RA_Motor->setSpeed(190);                
+    break;
+  }
 }
