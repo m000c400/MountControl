@@ -15,3 +15,5 @@
 #define LCD_d6 6
 #define LCD_d7 7
 
+#define IR_RX 11
+

@@ -1,3 +1,5 @@
+#include <IRremote.h>
+
 #include <EEPROM.h>
 #include <AccelStepper.h>
 #include <LiquidCrystal.h>
@@ -7,7 +9,8 @@
 #include "Configuration.h"
 
 //#define DEBUG 3
-//#define LCD
+#define LCD
+#define IR
 
 #define BUFFERSIZE 80
 #define TRUE 1
@@ -18,6 +21,12 @@ char COMMANDEND = 0x0D;
 #ifdef LCD
 LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
 #endif
+
+#ifdef IR
+IRrecv IRRx(IR_RX);
+decode_results IRResults;
+#endif
+
 
 TelescopeAxis *RA_Motor;
 TelescopeAxis *DEC_Motor;
@@ -36,13 +45,15 @@ void setup()
   RA_Motor = new TelescopeAxis( TelescopeAxis::DRIVER, RA_STEP, RA_DIRECTION);
   DEC_Motor = new TelescopeAxis(TelescopeAxis::DRIVER, DEC_STEP, DEC_DIRECTION);
   MountConfiguration = new Configuration();
-    
   MountConfiguration->LoadConfiguration();
-  
-  Serial.begin(9800);
+  Serial.begin(9600);
 
 #ifdef LCD
   lcd.begin(16, 2);
+#endif
+
+#ifdef IR
+  IRRx.enableIRIn();
 #endif
 
   pinMode(STATUSPIN, OUTPUT);
@@ -65,7 +76,6 @@ void setup()
   
   RA_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetRAMotorCountScale());
   DEC_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetDECMotorCountScale());
-  
 }
 
 void loop() 
@@ -77,6 +87,14 @@ void loop()
      else
        MountConfigurationMode();
    }
+  
+  #ifdef IR
+    if (IRRx.decode(&IRResults)) 
+    {
+      Serial.println(IRResults.value, HEX);
+      IRRx.resume(); // Receive the next value
+    }
+  #endif
   
   RA_Motor->Run();
   DEC_Motor->Run();
@@ -953,4 +971,8 @@ void SetGOTOSpeed(char *CommandBuffer)
     MountConfiguration->SetRAGotoSpeed(_Speed);
   else if(CommandBuffer[0] == '2')
     MountConfiguration->SetDECGotoSpeed(_Speed);
+}
+
+void ProcessIRMessage(void)
+{
 }
