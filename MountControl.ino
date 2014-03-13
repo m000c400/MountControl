@@ -33,6 +33,11 @@ TelescopeAxis *RA_Motor;
 TelescopeAxis *DEC_Motor;
 Configuration *MountConfiguration;
 
+float RASpeed = 0;
+float DECSpeed = 0;
+float RASideRealRate = 0;
+float DECSideRealRate = 0;
+
 #define CONTROL 1
 #define CONFIGURE 2
 int MountMode = CONTROL;
@@ -77,6 +82,9 @@ void setup()
   
   RA_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetRAMotorCountScale());
   DEC_Motor->setCurrentPosition(0x080000 / MountConfiguration->GetDECMotorCountScale());
+  
+  RASideRealRate = (float)(MountConfiguration->GetRAMotorCountScale() * MountConfiguration->GetRAStepsPerAxisRev()) / (float)86164.09053  ;
+  DECSideRealRate = (float)(MountConfiguration->GetDECMotorCountScale() * MountConfiguration->GetDECStepsPerAxisRev()) / (float)86164.09053  ;
 }
 
 void loop() 
@@ -95,6 +103,10 @@ void loop()
       ProcessIRMessage(IRResults.value);
       IRRx.resume(); // Receive the next value
     }
+  #endif
+  
+  #ifdef LCD
+    LCDUpdate();
   #endif
   
   RA_Motor->Run();
@@ -245,17 +257,13 @@ void SetTrackingSpeed(char *Command, char *Response)
                    {
                       Speed = -1*Speed;
                    }
-                   RA_Motor->setSpeed(Speed); 
+                   RA_Motor->setSpeed(Speed);
+                   RASpeed = Speed;
                 } 
                 #if DEBUG >=2
                   Serial1.println("\t\tNew Tracking Speed "); Serial1.println(Speed,4);
                 #endif
                 
-                #ifdef LCD
-                  lcd.setCursor(0, 0);
-                  lcd.print(Speed);
-                #endif
-
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
@@ -268,13 +276,10 @@ void SetTrackingSpeed(char *Command, char *Response)
                      Speed = -1*Speed;
                    }
                    DEC_Motor->setSpeed(Speed);
+                   DECSpeed = Speed;
                 } 
                 #if DEBUG >=2
                   Serial1.print("\t\tNew Tracking Speed "); Serial1.println(Speed,4);
-                #endif
-                #ifdef LCD
-                  lcd.setCursor(8, 0);
-                  lcd.print(Speed);
                 #endif
                 
                 CommandOK(Response,0),CommandEND(Response,1);
@@ -313,25 +318,11 @@ void ReportPosition(char *Command, char *Response)
    {
      case '1' : CommandOK(Response,0);
                 ULongToHex_Short(Response, 1, RA_Motor->currentPosition() * MountConfiguration->GetRAMotorCountScale());
-//                #if DEBUG >=2
-//                  Serial1.println(RA_Motor->currentPosition(),HEX);
-//                #endif
-                #ifdef LCD
-                  lcd.setCursor(0, 1);
-                  lcd.print(RA_Motor->currentPosition(),HEX);
-                #endif
                 CommandEND(Response,7);
      break;
 
      case '2' : CommandOK(Response,0);
                 ULongToHex_Short(Response, 1, DEC_Motor->currentPosition() * MountConfiguration->GetDECMotorCountScale());
-//                #if DEBUG >=2
-//                  Serial1.println(DEC_Motor->currentPosition(),HEX);
-//                #endif
-                #ifdef LCD
-                  lcd.setCursor(8, 1);
-                  lcd.print(DEC_Motor->currentPosition(),HEX);
-                #endif
                 CommandEND(Response,7);
      break;
 
@@ -707,10 +698,6 @@ void Goto(char *Command, char *Response)
                   Serial1.print("\t\tRA Goto ");Serial1.print(Position, HEX);
                   Serial1.print(" ");
                 #endif
-                #ifdef LCD
-                  lcd.setCursor(0, 0);
-                  lcd.print(Position,HEX);
-                #endif
                 CommandOK(Response,0),CommandEND(Response,1);
      break;
 
@@ -976,11 +963,85 @@ void SetGOTOSpeed(char *CommandBuffer)
 
 void ProcessIRMessage(unsigned long command)
 {
+  static int TrackSpeed = 1;
+  
   switch(command)
   {
     case IR_OK:  RA_Motor->setMotionMode(TelescopeAxis::SLEW);
-                 RA_Motor->setSpeed(MountConfiguration->GetRASlewSpeed());
-                 RA_Motor->setSpeed(190);                
+                 RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
+                 RASpeed = RASideRealRate * TrackSpeed;
+                 RA_Motor->startAxis();                
     break;
+    
+    case IR_1: TrackSpeed = 1; break;
+    case IR_2: TrackSpeed = 2; break;
+    case IR_3: TrackSpeed = 4; break;
+    case IR_4: TrackSpeed = 8; break;
+    case IR_5: TrackSpeed = 16; break;
+    case IR_6: TrackSpeed = 32; break;
+    case IR_7: TrackSpeed = 64; break;
+    case IR_8: TrackSpeed = 128; break;
+    case IR_9: TrackSpeed = 256; break;
+
+   case IR_LEFT: RA_Motor->setMotionMode(TelescopeAxis::SLEW);
+                  RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
+                  RASpeed = RASideRealRate * TrackSpeed;
+                  RA_Motor->startAxis();  
+    break;
+    
+    case IR_RIGHT:RA_Motor->setMotionMode(TelescopeAxis::SLEW);
+                  RA_Motor->setSpeed(-1 * RASideRealRate * TrackSpeed); 
+                  RASpeed = -1* RASideRealRate * TrackSpeed;
+                  RA_Motor->startAxis();  
+    break;
+
+
+    
+    case IR_UP:   DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
+                  DEC_Motor->setSpeed(-1 * DECSideRealRate * TrackSpeed); 
+                  DECSpeed = -1* DECSideRealRate * TrackSpeed;
+                  DEC_Motor->startAxis();  
+    break;
+    
+    
+    case IR_DOWN : DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
+                   DEC_Motor->setSpeed(DECSideRealRate * TrackSpeed); 
+                   DECSpeed = DECSideRealRate * TrackSpeed;
+                   DEC_Motor->startAxis();  
+    break;    
+    
+    case IR_STAR : RA_Motor->stopAxis(FALSE);
+                   DEC_Motor->stopAxis(FALSE); 
+                   RASpeed = 0;
+                   DECSpeed = 0;
+    break;
+    
   }
 }
+
+void LCDUpdate(void)
+{
+#ifdef LCD  
+  static long lasttime = 0;
+  long now;
+
+  now = millis();
+  
+  if(abs(now-lasttime)>1000)
+  {
+    lasttime = now;
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print(RA_Motor->currentPosition(),HEX);
+    lcd.setCursor(8, 1);
+    lcd.print(DEC_Motor->currentPosition(),HEX);
+    lcd.setCursor(0, 0);
+    lcd.print(RASpeed);
+    lcd.setCursor(8, 0);
+    lcd.print(DECSpeed);
+  }
+#endif  
+}
+  
+  
+  
