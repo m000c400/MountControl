@@ -26,6 +26,10 @@ LiquidCrystal lcd(LCD_rs, LCD_enable, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
 #ifdef IR
 IRrecv IRRx(IR_RX);
 decode_results IRResults;
+unsigned long IRTimeOut;
+int IRTrack = false;
+int IRSlew = false;
+#define IRTIMEOUT 500
 #endif
 
 
@@ -100,8 +104,13 @@ void loop()
   #ifdef IR
     if (IRRx.decode(&IRResults)) 
     {
+//      Serial.println(IRResults.value, HEX);
       ProcessIRMessage(IRResults.value);
       IRRx.resume(); // Receive the next value
+    }
+    else
+    {
+      IRTimeOutCheck();
     }
   #endif
   
@@ -967,12 +976,25 @@ void ProcessIRMessage(unsigned long command)
   
   switch(command)
   {
-    case IR_OK:  RA_Motor->setMotionMode(TelescopeAxis::SLEW);
-                 RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
-                 RASpeed = RASideRealRate * TrackSpeed;
-                 RA_Motor->startAxis();                
+    case IR_OK:  if(IRTrack == false)
+                 { 
+                   RA_Motor->setMotionMode(TelescopeAxis::SLEW);
+                   RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
+                   RASpeed = RASideRealRate * TrackSpeed;
+                   RA_Motor->startAxis();                
+                   IRTrack = true;
+                 }
+                 else
+                 {
+                    RA_Motor->stopAxis(FALSE);
+                    DEC_Motor->stopAxis(FALSE); 
+                    RASpeed = 0;
+                    DECSpeed = 0;
+                    IRTrack = false;
+                 }
+                 Serial.println("IR OK");
     break;
-    
+
     case IR_1: TrackSpeed = 1; break;
     case IR_2: TrackSpeed = 2; break;
     case IR_3: TrackSpeed = 4; break;
@@ -984,23 +1006,32 @@ void ProcessIRMessage(unsigned long command)
     case IR_9: TrackSpeed = 256; break;
 
    case IR_LEFT: RA_Motor->setMotionMode(TelescopeAxis::SLEW);
-                  RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
-                  RASpeed = RASideRealRate * TrackSpeed;
-                  RA_Motor->startAxis();  
+                 RA_Motor->setSpeed(RASideRealRate * TrackSpeed); 
+                 RASpeed = RASideRealRate * TrackSpeed;
+                 RA_Motor->startAxis();  
+                 IRSlew = true;
+                 IRTimeOut = millis() + IRTIMEOUT;
+                 Serial.println("Slew Left");
     break;
     
-    case IR_RIGHT:RA_Motor->setMotionMode(TelescopeAxis::SLEW);
-                  RA_Motor->setSpeed(-1 * RASideRealRate * TrackSpeed); 
-                  RASpeed = -1* RASideRealRate * TrackSpeed;
-                  RA_Motor->startAxis();  
+    case IR_RIGHT: RA_Motor->setMotionMode(TelescopeAxis::SLEW);
+                   RA_Motor->setSpeed(-1 * RASideRealRate * TrackSpeed); 
+                   RASpeed = -1* RASideRealRate * TrackSpeed;
+                   RA_Motor->startAxis();  
+                   IRSlew = true;
+                   IRTimeOut = millis() + IRTIMEOUT;
+                   Serial.println("Slew Right");
     break;
 
 
     
-    case IR_UP:   DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
-                  DEC_Motor->setSpeed(-1 * DECSideRealRate * TrackSpeed); 
-                  DECSpeed = -1* DECSideRealRate * TrackSpeed;
-                  DEC_Motor->startAxis();  
+    case IR_UP: DEC_Motor->setMotionMode(TelescopeAxis::SLEW);
+                DEC_Motor->setSpeed(-1 * DECSideRealRate * TrackSpeed); 
+                DECSpeed = -1* DECSideRealRate * TrackSpeed;
+                DEC_Motor->startAxis();  
+                IRSlew = true;
+                IRTimeOut = millis() + IRTIMEOUT;
+                Serial.println("Slew Up");
     break;
     
     
@@ -1008,19 +1039,45 @@ void ProcessIRMessage(unsigned long command)
                    DEC_Motor->setSpeed(DECSideRealRate * TrackSpeed); 
                    DECSpeed = DECSideRealRate * TrackSpeed;
                    DEC_Motor->startAxis();  
+                   IRSlew = true;
+                   IRTimeOut = millis() + IRTIMEOUT;
+                   Serial.println("Slew Down");
     break;    
     
-    case IR_STAR : RA_Motor->stopAxis(FALSE);
-                   DEC_Motor->stopAxis(FALSE); 
-                   RASpeed = 0;
-                   DECSpeed = 0;
+    
+    case IR_CONTINUE: IRTimeOut = millis() + IRTIMEOUT;        
+                      Serial.println("Slew Continue");
     break;
     
   }
 }
 
+void IRTimeOutCheck()
+{
+#ifdef IR
+  unsigned long Now;
+  
+  if(IRSlew == true)
+  {
+    Now = millis();
+  
+    if(Now>IRTimeOut)
+    {
+      Serial.println("Slew Time Out");
+      RA_Motor->stopAxis(FALSE);
+      DEC_Motor->stopAxis(FALSE); 
+      RASpeed = 0;
+      DECSpeed = 0;
+      IRSlew = false;
+    }
+  }
+#endif
+}
+
+
 void LCDUpdate(void)
 {
+  
 #ifdef LCD  
   static long lasttime = 0;
   long now;

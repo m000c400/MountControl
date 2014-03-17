@@ -1,6 +1,6 @@
 #define IR_OK 0xFF02FD
 
-#define IR_UP 0xff629D
+#define IR_UP 0xFF629D
 #define IR_DOWN 0xFFA857
 #define IR_LEFT 0xFF22DD
 #define IR_RIGHT 0xFFC23D
@@ -18,3 +18,5 @@
 
 #define IR_STAR 0xFF42BD
 #define IR_HASH 0xFF52AD
+
+#define IR_CONTINUE 0xFFFFFFFF
