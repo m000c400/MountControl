@@ -1,17 +1,13 @@
 #ifndef CONFIGURATION_h
 #define CONFIGURATION_h
 
-#include <stdlib.h>
-#if ARDUINO >= 100
 #include <Arduino.h>
-#include <EEPROM.h>
-#else
-#include <WProgram.h>
-#include <wiring.h>
+
+#if defined (_VARIANT_ARDUINO_DUE_X_)
+#include <DueFlashStorage.h>
+#include <efc.h>
+#include <flash_efc.h>
 #endif
-
-#include <EEPROM.h>
-
 
 // These defs cause trouble on some versions of Arduino
 #undef round
@@ -78,8 +74,8 @@ class Configuration
 				
   private:
     struct Configuration_Struct cs;
-    int EEPROM_write(void *Object, unsigned int Size);
-    int EEPROM_read(void *Object, unsigned int Size);
+    int NONVolatile_Read(void *Object, unsigned int Size);
+    int NONVolatile_Write(void *Object, unsigned int Size);
 };
 
 

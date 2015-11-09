@@ -1,12 +1,16 @@
 #include "Configuration.h"
 
+#if defined (_VARIANT_ARDUINO_DUE_X_)
+  DueFlashStorage dueFlashStorage;
+#endif
+
 Configuration::Configuration(void)
 {
 }
 
 void Configuration::LoadConfiguration(void)
 {
-/*  
+  
   cs.RAWormRatio = 130; // 130
   cs.DECWormRatio = 65; // 108 = 65 * 30/18
   
@@ -20,8 +24,8 @@ void Configuration::LoadConfiguration(void)
   cs.RASlewSpeed = 3000;
   cs.DECGotoSpeed = 3000;
   cs.DECSlewSpeed = 3000;
-*/
-  EEPROM_read((void *)&cs,sizeof(cs));  
+
+  NONVolatile_Read((void *)&cs,sizeof(cs));  
 }
 
 long Configuration::GetRAWormRatio(void)
@@ -146,25 +150,32 @@ void Configuration::SetDECMotorCountScale(long Scale)
 
 void Configuration::WriteConfiguration(void)
 {
-  EEPROM_write((void *)&cs,sizeof(cs));
+  NONVolatile_Write((void *)&cs,sizeof(cs));
 }
 
 
-int Configuration::EEPROM_write(void *Object, unsigned int Size)
+int Configuration::NONVolatile_Write(void *Object, unsigned int Size)
 {
-    const byte* p = (byte*)Object;
-    unsigned int i;
-    for (i = 0; i < Size; i++)
-          EEPROM.write(i, *p++);
-    return i;
+  byte *p;
+  unsigned int i;
+  
+  p = (byte *)Object;
+  #if defined (_VARIANT_ARDUINO_DUE_X_)
+    dueFlashStorage.write(0, p, Size);
+  #endif
+
+  return i;
 }
 
-int Configuration::EEPROM_read(void *Object, unsigned int Size)
+int Configuration::NONVolatile_Read(void *Object, unsigned int Size)
 {
-    byte* p = (byte*)(void*)Object;
+    byte *p = (byte*)(void*)Object;
     unsigned int i;
-    for (i = 0; i < Size; i++)
-          *p++ = EEPROM.read(i);
+    
+    #if defined (_VARIANT_ARDUINO_DUE_X_)
+      byte* b = dueFlashStorage.readAddress(0); // byte array which is read from flash at adress 4
+      memcpy(p, b, Size); // copy byte array to temporary struct#endif
+    #endif 
     return i;
 }
 
