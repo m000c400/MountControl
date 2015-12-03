@@ -1,28 +1,27 @@
-#ifndef CONFIGURATION_h
-#define CONFIGURATION_h
+#ifndef MountConfig_h
+#define MountConfig_h
 
 #include <Arduino.h>
 
-#if defined (_VARIANT_ARDUINO_DUE_X_)
-#include <DueFlashStorage.h>
-#include <efc.h>
-#include <flash_efc.h>
-#endif
+//#if defined (_VARIANT_ARDUINO_DUE_X_)
+//#include <DueFlashStorage.h>
+//#include <efc.h>
+//#include <flash_efc.h>
+//#endif
 
 // These defs cause trouble on some versions of Arduino
 #undef round
 
-struct Configuration_Struct
+struct MountConfig_Struct
 {
+  int  StoreVersion;
+  
   long RAWormRatio; 
   long DECWormRatio; 
   
   long RAStepsPerMotorRev; //25600;
   long DECStepsPerMotorRev; //5333;
   
-  long RAMotorCountScale;
-  long DECMotorCountScale;
-    
   float RAGotoSpeed;
   float RASlewSpeed;
   float DECGotoSpeed;
@@ -30,12 +29,12 @@ struct Configuration_Struct
 };   
 
 /////////////////////////////////////////////////////////////////////
-class Configuration 
+class MountConfig 
 {
   public:
-    Configuration();
-    void LoadConfiguration(void);
-    void WriteConfiguration(void);
+    MountConfig(void);
+    void LoadMountConfig(void);
+    void WriteMountConfig(void);
     
     long GetRAWormRatio(void); 
     void SetRAWormRatio(long Ratio); 
@@ -49,12 +48,6 @@ class Configuration
     long GetDECStepsPerMotorRev(void); 
     void SetDECStepsPerMotorRev(long Steps); 
     
-    long GetRAMotorCountScale(void);
-    void SetRAMotorCountScale(long Scale);
-
-    long GetDECMotorCountScale(void);
-    void SetDECMotorCountScale(long Scale);
-  
     long GetRAStepsPerWormRev(void);
     long GetDECStepsPerWormRev(void);
     
@@ -73,7 +66,7 @@ class Configuration
   protected:
 				
   private:
-    struct Configuration_Struct cs;
+    struct MountConfig_Struct cs;
     int NONVolatile_Read(void *Object, unsigned int Size);
     int NONVolatile_Write(void *Object, unsigned int Size);
 };
