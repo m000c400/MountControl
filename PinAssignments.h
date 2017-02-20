@@ -1,47 +1,62 @@
-//#define _ARDUINO_
-#define _STM_32_
+/* 
+    GEM Control System
+    Copyright (C) <2015>  <Mike Roberts>
 
-#ifdef _ARDUINO_
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-#define RA_STEP   2
-#define RA_DIRECTION 3
-#define RA_ENABLE 4
-#define RA_MODE2 A2
-#define RA_MODE1 A1
-#define RA_MODE0 A0
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-#define DEC_STEP 5
-#define DEC_DIRECTION 6
-#define DEC_ENABLE 7
-#define DEC_MODE2 A5
-#define DEC_MODE1 A4
-#define DEC_MODE0 A3
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+//#define STM32_DEV_BOARD
+#define V4_PROTO_SHIELD
 
-#define STATUSPIN 13
-#define IR_RX 11
+
+#ifdef STM32_DEV_BOARD
+
+#define RA_DIRECTION PC14
+#define RA_STEP   PC15
+#define RA_ENABLE PA5
+
+#define RA_nSLEEP PA0
+#define RA_nRESET PA1
+
+#define DEC_DIRECTION PA6
+#define DEC_STEP PA7
+#define DEC_ENABLE PB12
+
+#define DEC_nSLEEP PB0
+#define DEC_nRESET PB1
+
+#define STATUSPIN PC13
+
 #endif
 
-#ifdef _STM_32_
-#define RA_DIRECTION PC13
-#define RA_STEP   PC14
-#define RA_nSLEEP PC15
-#define RA_nRESET PA0
-#define RA_MODE2 PA1
-#define RA_MODE1 PA2
-#define RA_MODE0 PA3
-#define RA_nENABLE PA4
+#ifdef V4_PROTO_SHIELD
 
-#define DEC_DIRECTION PA5
-#define DEC_STEP PA6
-#define DEC_nSLEEP PA7
-#define DEC_nRESET PB0
-#define DEC_MODE2 PB1
-#define DEC_MODE1 PB10
-#define DEC_MODE0 PB11
-#define DEC_nENABLE PB14
+#define RA_DIRECTION 2
+#define RA_STEP   5
+#define RA_ENABLE 8
 
-#define STATUSPIN PB9
-#define IR_RX PA12
+#define RA_nSLEEP A0
+#define RA_nRESET A0
+
+#define DEC_DIRECTION 3
+#define DEC_STEP 6
+#define DEC_ENABLE 8
+
+#define DEC_nSLEEP A0
+#define DEC_nRESET A0
+
+#define STATUSPIN 13
+
 #endif
 
 

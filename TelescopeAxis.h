@@ -1,3 +1,20 @@
+/* 
+    GEM Control System
+    Copyright (C) <2015>  <Mike Roberts>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifndef TELESCOPEAXIS_h
 #define TELESCOPEAXIS_h
 
@@ -25,7 +42,7 @@ class TelescopeAxis : public AccelStepper
 			GOTO  = 1
 		} AxisMotionMode;
 	
-		TelescopeAxis(uint8_t STEP, uint8_t DIRECTION, uint8_t nENABLE, uint8_t nRESET, uint8_t nSLEEP, uint8_t MODE2, uint8_t MODE1, uint8_t MODE0);
+		TelescopeAxis(uint8_t STEP, uint8_t DIRECTION, uint8_t ENABLE, uint8_t SLEEP, uint8_t RESET, uint8_t nSTEP, uint8_t nDIRECTION, uint8_t nENABLE);
 
 		int getDirection(void);
 		int isStopped(void);
@@ -54,9 +71,6 @@ class TelescopeAxis : public AccelStepper
 		int RunMotor;
 		int Enabled;
     long TargetPosition;
-    uint8_t Mode0_Pin;
-    uint8_t Mode1_Pin;
-    uint8_t Mode2_Pin;
 };
 
 

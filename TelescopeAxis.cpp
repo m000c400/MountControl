@@ -1,6 +1,23 @@
+/* 
+    GEM Control System
+    Copyright (C) <2015>  <Mike Roberts>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "TelescopeAxis.h"
 
-TelescopeAxis::TelescopeAxis(uint8_t STEP, uint8_t DIRECTION, uint8_t nENABLE, uint8_t nRESET, uint8_t nSLEEP, uint8_t MODE2, uint8_t MODE1, uint8_t MODE0): AccelStepper(AccelStepper::DRIVER, STEP, DIRECTION)
+TelescopeAxis::TelescopeAxis(uint8_t STEP, uint8_t DIRECTION, uint8_t ENABLE, uint8_t SLEEP, uint8_t RESET, uint8_t nSTEP, uint8_t nDIRECTION, uint8_t nENABLE): AccelStepper(AccelStepper::DRIVER, STEP, DIRECTION)
 {
 	Direction = 1;
 	Stopped = 1;
@@ -8,18 +25,13 @@ TelescopeAxis::TelescopeAxis(uint8_t STEP, uint8_t DIRECTION, uint8_t nENABLE, u
 	Enabled = 0;
   TargetPosition = 0;
 
+  pinMode(RESET,OUTPUT); digitalWrite(RESET,HIGH);
+  pinMode(SLEEP,OUTPUT); digitalWrite(SLEEP,HIGH);
 
-  Mode0_Pin = MODE0; Mode1_Pin = MODE1; Mode2_Pin = MODE2;
-  pinMode(MODE2,OUTPUT); digitalWrite(MODE2,LOW);
-  pinMode(MODE1,OUTPUT); digitalWrite(MODE2,LOW);
-  pinMode(MODE0,OUTPUT); digitalWrite(MODE2,LOW);  
+  pinMode(ENABLE,OUTPUT); //digitalWrite(ENABLE,LOW);
 
-  pinMode(nENABLE,OUTPUT); digitalWrite(nENABLE,HIGH);
-  pinMode(nRESET,OUTPUT); digitalWrite(nRESET,HIGH);
-  pinMode(nSLEEP,OUTPUT); digitalWrite(nSLEEP,HIGH);
-
-  AccelStepper::setEnablePin(nENABLE);
-  AccelStepper::setPinsInverted(false,false,true);
+  AccelStepper::setEnablePin(ENABLE);
+  AccelStepper::setPinsInverted(nDIRECTION,nSTEP,nENABLE);
   AccelStepper::disableOutputs();
   AccelStepper::setCurrentPosition(0x080000);
   
@@ -54,14 +66,13 @@ void TelescopeAxis::Run(void)
 {
 	if(!RunMotor)
 		return;
-		
+	
 	if(_motionmode == GOTO)
 	{
-		
 		AccelStepper::run();
-		if( AccelStepper::distanceToGo() == 0)
+  	if( AccelStepper::distanceToGo() == 0)
 		{
-			Stopped = 1;
+      Stopped = 1;
 			_motionmode = SLEW;
 		}	
 		else
